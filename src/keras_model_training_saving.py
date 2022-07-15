@@ -2,13 +2,13 @@
 
 import tensorflow as tf
 import numpy as np
-import pandas as pd
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.metrics import categorical_crossentropy
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Activation, Dense, Dropout
+import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
     validation_split = 0.3
@@ -24,15 +24,6 @@ if __name__ == '__main__':
 
     validation_n = len(all_data) * validation_split
 
-
-    print("all_data[:,:-2].shape")
-    print(all_data[:, :-1].shape)
-    print("all_data[:,-1].shape")
-    print(all_data[:, -1].shape)
-    print("all_data[:, :-1]")
-    print(all_data[:, :-1])
-    print("all_data[:, -1]")
-    print(all_data[:, -1])
 
     all_data = np.array(all_data)
     # all_data = all_data.reshape(-1, 1)
@@ -51,9 +42,32 @@ if __name__ == '__main__':
     model.summary()
 
     model.compile(optimizer=Adam(learning_rate=0.0001), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-    model.fit(x=all_data[:, :-1], y=all_data[:, -1], validation_split=validation_split, batch_size=5, shuffle=True, epochs=50,
+    fit_history = model.fit(x=all_data[:, :-1], y=all_data[:, -1], validation_split=validation_split, batch_size=5, shuffle=True, epochs=50,
               verbose=2)
+
+    fig = plt.figure()
+
+    plt.subplot(1, 2, 1)
+    plt.plot(fit_history.history['accuracy'])
+    plt.plot(fit_history.history['val_accuracy'])
+    plt.title('model accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'val'], loc='upper left')
+
+    plt.subplot(1, 2, 2)
+    plt.plot(fit_history.history['loss'])
+    plt.plot(fit_history.history['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'val'], loc='upper left')
+
+    plt.show()
 
     print("\n")
     print("Using %d samples for training and %d for validation" % (len(all_data) - validation_n, validation_n))
     print("\n")
+
+    model.save("myModel")
+
