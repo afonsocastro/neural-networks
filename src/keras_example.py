@@ -1,166 +1,188 @@
 #!/usr/bin/env python3
 
-import tensorflow as tf
+from tensorflow.keras.optimizers import Adam, SGD, Nadam, RMSprop
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Activation, Dense, Dropout
+from tensorflow.keras.activations import sigmoid, elu, relu, softmax
+import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
+import time
+from keras_tuner import RandomSearch
+from keras_tuner.engine.hyperparameters import HyperParameters
 from tensorflow import keras
-from tensorflow.keras import layers
-
-from tensorflow.keras.layers import IntegerLookup
-from tensorflow.keras.layers import Normalization
-from tensorflow.keras.layers import StringLookup
+from tabulate import tabulate
 
 
-def encode_numerical_feature(feature, name, dataset):
-    # Create a Normalization layer for our feature
-    normalizer = Normalization()
-
-    # Prepare a Dataset that only yields our feature
-    feature_ds = dataset.map(lambda x, y: x[name])
-    feature_ds = feature_ds.map(lambda x: tf.expand_dims(x, -1))
-
-    # Learn the statistics of the data
-    normalizer.adapt(feature_ds)
-
-    # Normalize the input feature
-    encoded_feature = normalizer(feature)
-    return encoded_feature
-
-
-def encode_categorical_feature(feature, name, dataset, is_string):
-    lookup_class = StringLookup if is_string else IntegerLookup
-    # Create a lookup layer which will turn strings into integer indices
-    lookup = lookup_class(output_mode="binary")
-
-    # Prepare a Dataset that only yields our feature
-    feature_ds = dataset.map(lambda x, y: x[name])
-    feature_ds = feature_ds.map(lambda x: tf.expand_dims(x, -1))
-
-    # Learn the set of possible string values and assign them a fixed integer index
-    lookup.adapt(feature_ds)
-
-    # Turn the string input into integer indices
-    encoded_feature = lookup(feature)
-    return encoded_feature
+# Print iterations progress
+def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    # Print New Line on Complete
+    if iteration == total:
+        print()
 
 
-def dataframe_to_dataset(dataframe):
-    dataframe = dataframe.copy()
-    labels = dataframe.pop("target")
-    ds = tf.data.Dataset.from_tensor_slices((dict(dataframe), labels))
-    ds = ds.shuffle(buffer_size=len(dataframe))
-    return ds
+def build_model(n_layers, neurons_per_layer, learning_rate, dropout, _optimizer, activation, _loss):
+
+    model = Sequential()
+    for layer in range(0, n_layers):
+        if layer == 0:
+            model.add(Dense(units=neurons_per_layer, input_shape=(650,), activation=activation))
+            model.add(Dropout(dropout))
+        else:
+            model.add(Dense(units=neurons_per_layer, activation=activation))
+            model.add(Dropout(dropout))
+
+    model.add(Dense(units=4, activation='softmax'))
+
+    keras.utils.plot_model(model, show_shapes=True, rankdir="LR")
+
+    # model.summary()
+    if _optimizer == "Adam":
+        model.compile(optimizer=Adam(learning_rate=learning_rate), loss=_loss,
+                      metrics=['accuracy'])
+    elif _optimizer == "SGD":
+        model.compile(optimizer=SGD(learning_rate=learning_rate), loss=_loss,
+                      metrics=['accuracy'])
+    elif _optimizer == "Nadam":
+        model.compile(optimizer=Nadam(learning_rate=learning_rate), loss=_loss,
+                      metrics=['accuracy'])
+    elif _optimizer == "RMSprop":
+        model.compile(optimizer=RMSprop(learning_rate=learning_rate), loss=_loss,
+                      metrics=['accuracy'])
+
+    return model
 
 
 if __name__ == '__main__':
 
-    file_url = "http://storage.googleapis.com/download.tensorflow.org/data/heart.csv"
-    dataframe = pd.read_csv(file_url)
+    validation_split = 0.3
 
-    print("dataframe.shape")
-    print(dataframe.shape)
-    print("type(dataframe)")
-    print(type(dataframe))
+    all_data = np.load('../data/learning_data.npy', mmap_mode=None, allow_pickle=False, fix_imports=True,
+                       encoding='ASCII')
 
-    val_dataframe = dataframe.sample(frac=0.2, random_state=1337)
-    train_dataframe = dataframe.drop(val_dataframe.index)
+    validation_n = len(all_data) * validation_split
 
-    print("Using %d samples for training and %d for validation" % (len(train_dataframe), len(val_dataframe)))
+    all_data = np.array(all_data)
 
-    train_ds = dataframe_to_dataset(train_dataframe)
-    val_ds = dataframe_to_dataset(val_dataframe)
+    # tuner = RandomSearch(build_model, objective='val_accuracy', max_trials=5, executions_per_trial=1)
+    # tuner.search(x=x_train, y=y_train, epochs=5, batch_size=64, validation_data=(x_val, y_val))
+    # best_model = tuner.get_best_models()[0]
 
-    # for x, y in train_ds.take(1):
-    #     print("Input:", x)
-    #     print("Target:", y)
-
-    train_ds = train_ds.batch(32)
-    val_ds = val_ds.batch(32)
-
-    print("type(train_ds)")
-    print(type(train_ds))
-
-    # Categorical features encoded as integers
-    sex = keras.Input(shape=(1,), name="sex", dtype="int64")
-    cp = keras.Input(shape=(1,), name="cp", dtype="int64")
-    fbs = keras.Input(shape=(1,), name="fbs", dtype="int64")
-    restecg = keras.Input(shape=(1,), name="restecg", dtype="int64")
-    exang = keras.Input(shape=(1,), name="exang", dtype="int64")
-    ca = keras.Input(shape=(1,), name="ca", dtype="int64")
-
-    # Categorical feature encoded as string
-    thal = keras.Input(shape=(1,), name="thal", dtype="string")
-
-    # Numerical features
-    age = keras.Input(shape=(1,), name="age")
-    trestbps = keras.Input(shape=(1,), name="trestbps")
-    chol = keras.Input(shape=(1,), name="chol")
-    thalach = keras.Input(shape=(1,), name="thalach")
-    oldpeak = keras.Input(shape=(1,), name="oldpeak")
-    slope = keras.Input(shape=(1,), name="slope")
-
-    all_inputs = [
-        sex,
-        cp,
-        fbs,
-        restecg,
-        exang,
-        ca,
-        thal,
-        age,
-        trestbps,
-        chol,
-        thalach,
-        oldpeak,
-        slope,
-    ]
-
-    # Integer categorical features
-    sex_encoded = encode_categorical_feature(sex, "sex", train_ds, False)
-    cp_encoded = encode_categorical_feature(cp, "cp", train_ds, False)
-    fbs_encoded = encode_categorical_feature(fbs, "fbs", train_ds, False)
-    restecg_encoded = encode_categorical_feature(restecg, "restecg", train_ds, False)
-    exang_encoded = encode_categorical_feature(exang, "exang", train_ds, False)
-    ca_encoded = encode_categorical_feature(ca, "ca", train_ds, False)
-
-    # String categorical features
-    thal_encoded = encode_categorical_feature(thal, "thal", train_ds, True)
-
-    # Numerical features
-    age_encoded = encode_numerical_feature(age, "age", train_ds)
-    trestbps_encoded = encode_numerical_feature(trestbps, "trestbps", train_ds)
-    chol_encoded = encode_numerical_feature(chol, "chol", train_ds)
-    thalach_encoded = encode_numerical_feature(thalach, "thalach", train_ds)
-    oldpeak_encoded = encode_numerical_feature(oldpeak, "oldpeak", train_ds)
-    slope_encoded = encode_numerical_feature(slope, "slope", train_ds)
-
-    all_features = layers.concatenate(
-        [
-            sex_encoded,
-            cp_encoded,
-            fbs_encoded,
-            restecg_encoded,
-            exang_encoded,
-            slope_encoded,
-            ca_encoded,
-            thal_encoded,
-            age_encoded,
-            trestbps_encoded,
-            chol_encoded,
-            thalach_encoded,
-            oldpeak_encoded,
-        ]
-    )
-    x = layers.Dense(32, activation="relu")(all_features)
-    x = layers.Dropout(0.5)(x)
-    output = layers.Dense(1, activation="sigmoid")(x)
-    model = keras.Model(all_inputs, output)
-    model.compile("adam", "binary_crossentropy", metrics=["accuracy"])
-
-    # `rankdir='LR'` is to make the graph horizontal.
-    keras.utils.plot_model(model, show_shapes=True, rankdir="LR")
+    # batch_size_options = [32, 64, 96, 128, 160, 192, 224, 256]
+    batch_size_options = [32, 96, 256]
+    # epochs_options = [50, 100, 150, 200]
+    epochs_options = [50, 100, 150]
+    # n_layers_options = [1, 2, 3, 4]
+    n_layers_options = [1, 2, 3]
+    # neurons_per_layer_option = [16, 32, 64, 128]
+    neurons_per_layer_option = [32, 64, 128]
+    # learning_rate_options = [0.0001, 0.0005, 0.001, 0.01]
+    learning_rate_options = [0.0001, 0.001]
+    dropout_options = [0.1, 0.2, 0.5]
+    # activation_options = ['relu', 'sigmoid', 'softsign', 'tanh', 'selu', 'softmax']
+    activation_options = ['relu', 'sigmoid', 'softsign']
+    # optimizer_options = ["Adam", "SGD", "Nadam", "RMSprop"]
+    optimizer_options = ["Adam", "SGD"]
+    loss_options = ['sparse_categorical_crossentropy']
 
 
 
+    # almost_every_tests = len(batch_size_options)
 
+    total_tests = len(batch_size_options) * len(epochs_options) * len(n_layers_options) * \
+                  len(neurons_per_layer_option) * len(learning_rate_options) * len(dropout_options) * \
+                  len(optimizer_options) * len(activation_options) * len(loss_options)
+
+    # total_epochs = 0
+    # for epochs in epochs_options:
+    #     e = almost_every_tests * epochs
+    #     total_epochs = total_epochs + e
+
+    total_time = 0
+    results_list = []
+    val_accuracies = []
+    n_test = 0
+
+    printProgressBar(0, total_tests, prefix='Progress:', suffix='Complete', length=150)
+
+    for batch_size in batch_size_options:
+        for epoch in epochs_options:
+            for layers in n_layers_options:
+                for neurons in neurons_per_layer_option:
+                    for lr in learning_rate_options:
+                        for do in dropout_options:
+                            for optimizer in optimizer_options:
+                                for activ in activation_options:
+                                    for loss in loss_options:
+
+                                        star_time = time.time()
+
+                                        model = build_model(layers, neurons, lr, do, optimizer, activ, loss)
+
+                                        fit_history = model.fit(x=all_data[:, :-1], y=all_data[:, -1], validation_split=validation_split,
+                                                                batch_size=batch_size, shuffle=True, epochs=epoch, verbose=0)
+                                        end_time = time.time()
+                                        elapsed_time = end_time - star_time
+
+                                        test = {"n_test": n_test, "val_accuracy": fit_history.history['val_accuracy'][-1],
+                                                "batch_size": batch_size, "epochs": epoch, "layers": layers,
+                                                "neurons": neurons, "learning_rate": lr, "dropout": do,
+                                                "optimizer": optimizer, "activation": activ, "loss": loss}
+
+                                        val_accuracies.append(fit_history.history['val_accuracy'][-1])
+                                        results_list.append(test)
+
+                                        total_time = total_time + elapsed_time
+                                        time.sleep(0.1)
+                                        # Update Progress Bar
+                                        printProgressBar(n_test, total_tests, prefix='Progress:', suffix='Complete', length=150)
+                                        n_test += 1
+
+    print("\n")
+    print("\n")
+
+    # Just for printing beautiful tables with values------------------------------
+    results_for_printing = []
+    headers = []
+
+    for i in range(0, n_test):
+        sample_result = []
+        headers = []
+        for key, value in results_list[i].items():
+            sample_result.append(value)
+            headers.append(key)
+        results_for_printing.append(sample_result)
+    print(tabulate(results_for_printing, headers=headers, tablefmt="fancy_grid"))
+    print("\n")
+    # -----------------------------------------------------------------------------------------
+
+    max_accuracy = max(val_accuracies)
+    max_indice = val_accuracies.index(max_accuracy)
+    best_parameters = results_list[max_indice]
+
+    print("\nbest_parameters")
+    values = []
+    keys = []
+    for key, value in best_parameters.items():
+        values.append(value)
+        keys.append(key)
+    print(tabulate([values], headers=keys, tablefmt="fancy_grid"))
+    print("\n")
+
+    print("\ntotal_time: %f" % total_time)
 

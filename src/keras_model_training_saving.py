@@ -30,10 +30,10 @@ if __name__ == '__main__':
     #
 
     model = Sequential([
-        # Dense(units=16, input_shape=(650,), activation='relu'),
-        Dense(units=32, input_shape=(650,), activation='relu'),
+        Dense(units=16, input_shape=(650,), activation='relu'),
+        # Dense(units=32, input_shape=(650,), activation='relu'),
         # Dense(units=32, activation='relu'),
-        Dropout(0.2),
+        # Dropout(0.2),
         Dense(units=4, activation='softmax')
     ])
 
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     model.summary()
 
     model.compile(optimizer=Adam(learning_rate=0.0001), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-    fit_history = model.fit(x=all_data[:800, :-1], y=all_data[:800, -1], validation_split=validation_split, batch_size=128, shuffle=True, epochs=1000,
+    fit_history = model.fit(x=all_data[:, :-1], y=all_data[:, -1], validation_split=validation_split, batch_size=96, shuffle=True, epochs=150,
               verbose=2)
 
     fig = plt.figure()
