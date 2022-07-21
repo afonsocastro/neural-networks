@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 if __name__ == '__main__':
     validation_split = 0.3
 
-    all_data = np.load('../data/learning_data.npy', mmap_mode=None, allow_pickle=False, fix_imports=True,
+    all_data = np.load('../data/learning_data_training.npy', mmap_mode=None, allow_pickle=False, fix_imports=True,
                        encoding='ASCII')
 
     print("type(all_data)")
