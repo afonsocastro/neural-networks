@@ -13,6 +13,24 @@ from tensorflow import keras
 from tabulate import tabulate
 
 
+# batch_size_options = [32, 64, 96, 192, 256]
+batch_size_options = [64, 96]
+epochs_options = [300]
+# n_layers_options = [1, 2, 3, 4]
+n_layers_options = [2, 3]
+# neurons_per_layer_option = [16, 32, 64, 128]
+neurons_per_layer_option = [64, 128]
+# learning_rate_options = [0.0001, 0.001, 0.01]
+learning_rate_options = [0.001]
+# dropout_options = [0.1, 0.2, 0.5]
+dropout_options = [0.1]
+# activation_options = ['relu', 'sigmoid', 'softsign', 'tanh', 'selu', 'softmax']
+activation_options = ['relu', 'sigmoid']
+# optimizer_options = ["Adam", "SGD", "Nadam", "RMSprop"]
+optimizer_options = ["Adam", "SGD"]
+loss_options = ['sparse_categorical_crossentropy']
+
+
 # Print iterations progress
 def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
     """
@@ -83,35 +101,12 @@ if __name__ == '__main__':
     # tuner.search(x=x_train, y=y_train, epochs=5, batch_size=64, validation_data=(x_val, y_val))
     # best_model = tuner.get_best_models()[0]
 
-    # batch_size_options = [32, 64, 96, 128, 160, 192, 224, 256]
-    batch_size_options = [32, 96, 256]
-    # epochs_options = [50, 100, 150, 200]
-    epochs_options = [50, 100, 150]
-    # n_layers_options = [1, 2, 3, 4]
-    n_layers_options = [1, 2, 3]
-    # neurons_per_layer_option = [16, 32, 64, 128]
-    neurons_per_layer_option = [32, 64, 128]
-    # learning_rate_options = [0.0001, 0.0005, 0.001, 0.01]
-    learning_rate_options = [0.0001, 0.001]
-    dropout_options = [0.1, 0.2, 0.5]
-    # activation_options = ['relu', 'sigmoid', 'softsign', 'tanh', 'selu', 'softmax']
-    activation_options = ['relu', 'sigmoid', 'softsign']
-    # optimizer_options = ["Adam", "SGD", "Nadam", "RMSprop"]
-    optimizer_options = ["Adam", "SGD"]
-    loss_options = ['sparse_categorical_crossentropy']
-
-
-
     # almost_every_tests = len(batch_size_options)
 
     total_tests = len(batch_size_options) * len(epochs_options) * len(n_layers_options) * \
                   len(neurons_per_layer_option) * len(learning_rate_options) * len(dropout_options) * \
                   len(optimizer_options) * len(activation_options) * len(loss_options)
 
-    # total_epochs = 0
-    # for epochs in epochs_options:
-    #     e = almost_every_tests * epochs
-    #     total_epochs = total_epochs + e
 
     total_time = 0
     results_list = []
@@ -133,9 +128,11 @@ if __name__ == '__main__':
                                         star_time = time.time()
 
                                         model = build_model(layers, neurons, lr, do, optimizer, activ, loss)
-
-                                        fit_history = model.fit(x=all_data[:, :-1], y=all_data[:, -1], validation_split=validation_split,
-                                                                batch_size=batch_size, shuffle=True, epochs=epoch, verbose=0)
+                                        callback = keras.callbacks.EarlyStopping(monitor='loss', patience=3)
+                                        fit_history = model.fit(x=all_data[:, :-1], y=all_data[:, -1],
+                                                                validation_split=validation_split,
+                                                                batch_size=batch_size, shuffle=True, epochs=epoch,
+                                                                verbose=0, callbacks=[callback])
                                         end_time = time.time()
                                         elapsed_time = end_time - star_time
 
