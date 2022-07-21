@@ -133,13 +133,15 @@ if __name__ == '__main__':
                                                                 validation_split=validation_split,
                                                                 batch_size=batch_size, shuffle=True, epochs=epoch,
                                                                 verbose=0, callbacks=[callback])
+
                                         end_time = time.time()
                                         elapsed_time = end_time - star_time
 
                                         test = {"n_test": n_test, "val_accuracy": fit_history.history['val_accuracy'][-1],
                                                 "batch_size": batch_size, "epochs": epoch, "layers": layers,
                                                 "neurons": neurons, "learning_rate": lr, "dropout": do,
-                                                "optimizer": optimizer, "activation": activ, "loss": loss}
+                                                "optimizer": optimizer, "activation": activ, "loss": loss,
+                                                "last_epoch": len(fit_history.history['loss'])}
 
                                         val_accuracies.append(fit_history.history['val_accuracy'][-1])
                                         results_list.append(test)
