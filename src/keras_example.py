@@ -19,16 +19,18 @@ epochs_options = [300]
 # n_layers_options = [1, 2, 3, 4]
 n_layers_options = [2, 3]
 # neurons_per_layer_option = [16, 32, 64, 128]
-neurons_per_layer_option = [64, 128]
+neurons_per_layer_option = [32, 64]
 # learning_rate_options = [0.0001, 0.001, 0.01]
 learning_rate_options = [0.001]
 # dropout_options = [0.1, 0.2, 0.5]
 dropout_options = [0.1]
-# activation_options = ['relu', 'sigmoid', 'softsign', 'tanh', 'selu', 'softmax']
+# activation_options = ['relu', 'sigmoid', 'softsign', 'tanh', 'selu']
 activation_options = ['relu', 'sigmoid']
 # optimizer_options = ["Adam", "SGD", "Nadam", "RMSprop"]
 optimizer_options = ["Adam", "SGD"]
 loss_options = ['sparse_categorical_crossentropy']
+
+early_stop_patience = 20
 
 
 # Print iterations progress
@@ -90,7 +92,7 @@ if __name__ == '__main__':
 
     validation_split = 0.3
 
-    all_data = np.load('../data/learning_data.npy', mmap_mode=None, allow_pickle=False, fix_imports=True,
+    all_data = np.load('../data/learning_data_training.npy', mmap_mode=None, allow_pickle=False, fix_imports=True,
                        encoding='ASCII')
 
     validation_n = len(all_data) * validation_split
@@ -128,7 +130,9 @@ if __name__ == '__main__':
                                         star_time = time.time()
 
                                         model = build_model(layers, neurons, lr, do, optimizer, activ, loss)
-                                        callback = keras.callbacks.EarlyStopping(monitor='loss', patience=3)
+
+                                        callback = keras.callbacks.EarlyStopping(monitor='loss', patience=early_stop_patience)
+
                                         fit_history = model.fit(x=all_data[:, :-1], y=all_data[:, -1],
                                                                 validation_split=validation_split,
                                                                 batch_size=batch_size, shuffle=True, epochs=epoch,

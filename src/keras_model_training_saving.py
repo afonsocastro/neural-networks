@@ -30,12 +30,14 @@ if __name__ == '__main__':
     #
 
     model = Sequential([
-        Dense(units=64, input_shape=(650,), activation='relu'),
+        Dense(units=32, input_shape=(650,), activation='relu'),
         Dropout(0.1),
-        Dense(units=64, activation='relu'),
+        Dense(units=32, activation='relu'),
         Dropout(0.1),
-        Dense(units=64, activation='relu'),
+        Dense(units=32, activation='relu'),
         Dropout(0.1),
+        # Dense(units=64, activation='relu'),
+        # Dropout(0.1),
         Dense(units=4, activation='softmax')
     ])
 
@@ -44,13 +46,14 @@ if __name__ == '__main__':
 
     model.summary()
 
-    model.compile(optimizer=Adam(learning_rate=0.0001), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(learning_rate=0.001), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
-    callback = keras.callbacks.EarlyStopping(monitor='loss', patience=3)
+    callback = keras.callbacks.EarlyStopping(monitor='loss', patience=5)
 
     fit_history = model.fit(x=all_data[:, :-1], y=all_data[:, -1], validation_split=validation_split, batch_size=64,
                             # shuffle=True, epochs=300, verbose=2)
                             shuffle=True, epochs=300, verbose=2, callbacks=[callback])
+                            # shuffle=True, epochs=300, verbose=2)
 
     fig = plt.figure()
 
