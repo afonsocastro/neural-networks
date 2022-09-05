@@ -9,21 +9,17 @@ from tensorflow import keras
 from tabulate import tabulate
 import itertools
 import json
+from statistics import mean
 
 # batch_size_options = [32, 64, 96, 192, 256]
 batch_size_options = [96]
-epochs_options = [300]
-n_layers_options = [3]
-# n_layers_options = [2]
-neurons_per_layer_option = [16, 32, 64, 128]
-# neurons_per_layer_option = [32]
-learning_rate_options = [0.001]
-# learning_rate_options = [0.001]
-# dropout_options = [0, 0.2, 0.5]
+epochs_options = [500]
+n_layers_options = [1, 2, 3]
+neurons_per_layer_option = [16, 32, 64]
+learning_rate_options = [0.01, 0.001, 0.0001]
 dropout_options = [0, 0.2, 0.5]
 # activation_options = ['relu', 'sigmoid', 'softsign', 'tanh', 'selu']
-activation_options = ['relu', 'selu']
-# activation_options = ['relu', 'sigmoid']
+activation_options = ['relu', 'softsign', 'tanh', 'selu']
 # optimizer_options = ["Adam", "SGD", "RMSprop"]
 optimizer_options = ["Adam"]
 loss_options = ['sparse_categorical_crossentropy']
@@ -149,10 +145,14 @@ if __name__ == '__main__':
                             for layers in n_layers_options:
                                 model_combinations = list(itertools.product(layer_options, repeat=layers))
                                 for model_combination in model_combinations:
-                                    total_tests += 1
+                                    # total_tests += 1
+                                    total_tests += 3
 
     print("total_tests")
     print(total_tests)
+
+    print("total_configurations")
+    print(int(total_tests/3))
 
     total_time = 0
     results_list = []
@@ -170,6 +170,10 @@ if __name__ == '__main__':
                             for layers in n_layers_options:
                                 model_combinations = list(itertools.product(layer_options, repeat=layers))
                                 for model_combination in model_combinations:
+
+                                    val_accuracies_for_mean = []
+                                    last_epochs_for_mean = []
+
                                     star_time = time.time()
 
                                     model = build_model(model_combination, do, lr, optimizer, loss)
@@ -177,28 +181,35 @@ if __name__ == '__main__':
 
                                     callback = keras.callbacks.EarlyStopping(monitor='val_loss',
                                                                              patience=early_stop_patience)
+                                    for trial in range(0, 3):
+                                        fit_history = model.fit(x=all_data[:, :-1], y=all_data[:, -1],
+                                                                validation_split=validation_split,
+                                                                batch_size=batch_size, shuffle=True, epochs=epoch,
+                                                                verbose=0, callbacks=[callback])
+                                        val_accuracies_for_mean.append(fit_history.history['val_accuracy'][-1])
+                                        last_epochs_for_mean.append(len(fit_history.history['loss']))
 
-                                    fit_history = model.fit(x=all_data[:, :-1], y=all_data[:, -1],
-                                                            validation_split=validation_split,
-                                                            batch_size=batch_size, shuffle=True, epochs=epoch,
-                                                            verbose=0, callbacks=[callback])
+                                        time.sleep(0.1)
+                                        # Update Progress Bar
+                                        printProgressBar(n_test, total_tests, prefix='Progress:', suffix='Complete',
+                                                         length=150)
+                                        n_test += 1
 
                                     end_time = time.time()
                                     elapsed_time = end_time - star_time
 
-                                    test = {"n_test": n_test, "val_accuracy": fit_history.history['val_accuracy'][-1],
+                                    val_accuracy_mean = round(mean(val_accuracies_for_mean), 6)
+                                    last_epoch_mean = round(mean(last_epochs_for_mean), 2)
+
+                                    test = {"n_test": n_test, "val_accuracy": val_accuracy_mean,
                                             "batch_size": batch_size, "epochs": epoch, "layers": layers, "lr": lr,
                                             "dropout": do, "model": model_combination, "optimizer": optimizer,
-                                            "last_epoch": len(fit_history.history['loss']), "loss": loss}
+                                            "last_epoch": last_epoch_mean, "loss": loss}
 
-                                    val_accuracies.append(fit_history.history['val_accuracy'][-1])
+                                    val_accuracies.append(val_accuracy_mean)
                                     results_list.append(test)
 
                                     total_time = total_time + elapsed_time
-                                    time.sleep(0.1)
-                                    # Update Progress Bar
-                                    printProgressBar(n_test, total_tests, prefix='Progress:', suffix='Complete', length=150)
-                                    n_test += 1
 
     print("\n")
     print("\n")
